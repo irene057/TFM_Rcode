@@ -1,5 +1,3 @@
-
-
 install.packages("devtools")
 install.packages("ggplot2")
 install.packages("scales")
@@ -12,6 +10,14 @@ install.packages("Matrix")
 install.packages("arules")
 install.packages( arules , scatterplot3d, vcd, seriation, igraph,"grid","cluster","TSP","gclus", "colorspace")
 install.packages("arulesViz")
+install.packages("plotrix")
+install.packages("rattle")
+install.packages("rfUtilities")
+install.packages("NeuralNetTools")
+install.packages("pROC")
+install.packages("neuralnet")
+
+library(plotrix)
 library(Matrix)
 library(arulesViz)
 library(arules)
@@ -31,31 +37,31 @@ library(broom)
 library(DescTools)
 library(referenceIntervals)
 library(car)
-library(moments)
 library(nnet)
 library(FactoMineR)
 library(factoextra)
+library(e1071)  
+library(caret)  
+library(rattle)
+library(randomForest)
+library(neuralnet)
+library(rfUtilities)
+library(rpart)
+library(rpart.plot)
+library(FSelector)
+library(pROC)
+library(NeuralNetTools)
+library(NeuralNetTools)
 
 setwd("/Users/irene/Documents/TFM/DATASET")
 df_patient_integrated_info <- read.csv("patient_integrated_info.csv",header=TRUE,sep=";",stringsAsFactors = FALSE)
 df_test <- df_patient_integrated_info
 glimpse(df_test)
-df_firstdx<-read.csv("patient_has_antiangiogenic_treatment.csv",header = TRUE,sep=";",stringsAsFactors = FALSE)
-df_chem<- read.csv("patient_has_immunotherapy_treatment.csv",header = TRUE,sep=";",stringsAsFactors = FALSE)
-xx<-df_test[,c("EHR","stage_at_dx","stage")]
-df_firstdx<-left_join(df_firstdx,xx,by="EHR")
-
-###preprocessing
-
-
-#na.omit(df_patient_integrated_info)
-
 sort(sapply(df_test,function(x) sum(is.na(x))),decreasing = FALSE)
-dim(df_test)   #1039x324
-sort(table(df_test$TreatmentLine_5_posology),decreasing = TRUE)
-###Numeros de valor vacio en cada columna
 sort(sapply(df_test,function(x) sum(x=="")),decreasing = FALSE)
-# exploratory analysis ---------------------------------------------------
+dim(df_test)   #1039x324
+
+# Exploratory analysis ---------------------------------------------------
 
 
 #drugs for each treatment
@@ -70,7 +76,6 @@ df_drugsForEachTreatment1<-df_drugsForEachTreatment1%>%
   group_by(TreatmentType)%>%
   count(Drugs=factor(Drugs),LineOfTreatment)
   ggplot(df_drugsForEachTreatment1[df_drugsForEachTreatment1$TreatmentType!="",],aes(x=Drugs,y=n,fill=TreatmentType))+geom_col()+coord_flip()+labs(y="nº of patients")+facet_grid(. ~ LineOfTreatment)+theme(legend.position = "bottom")
-  
   
 
 #smoker vs gender
@@ -93,7 +98,7 @@ ggplot(df_new, aes(death_cause,pct,fill=death_cause)) +
   scale_y_continuous(labels = scales::percent)+
   scale_x_discrete(labels=c("obstruccion intestinal" = "obst. intest."))+
   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-  labs(y="Percentage of patient")
+  labs(y="Percentage of patient")+ggtitle(label ="Death cause in case of death")
   
 # FUCNTION for number of patientes whos has comorbity, cormorbitie_jke, drugGroup,Mutatted,symptoms,toxicity
 dfToxicity <- df_test[,grepl("toxicities2_",names(df_test))]
@@ -135,7 +140,6 @@ df_plot_arranged <-grid.arrange(arrangeGrob(g1, g2, nrow = 1),
                                  arrangeGrob(nullGrob(), legend, nullGrob(), nrow = 1), ncol = 1, heights = c(4,0.5),
                                  top = textGrob("surival days of dead pacientes / alive pacientes", gp = gpar(fotsize = 12, font = 2)))
 View(df_test[!(df_test$categorized_stage_at_dx=="") & !(df_test$dead==1),])
-##
 ##show treatments
 vectorTrearmnt<-c("chemotherapy","radiationtherapy","immunotherapy","antiangiogenic","tki","surgery","palliative_care")
 dfTreatment<-NULL
@@ -178,9 +182,6 @@ ggplot(df_cumsum1,aes(x=Treatment,y=FrequecyPerStage,fill=forcats::fct_rev(Stage
         axis.title=element_text(size=16),legend.title=element_text(size=16), 
         legend.text=element_text(size=14))+
   geom_text(aes(y=label_ypos,label = FrequecyPerStage), vjust=1.6, color="white", size = 3.5)
-  
-  
-  ##
   
 ##Has systemic progression
 
@@ -278,7 +279,6 @@ g5<-ggplot(DDDF[!is.na(DDDF$TreatmentLine_5_type),],aes(x=TreatmentLine_5_type,y
                                                                                                                                                                                                          axis.title=element_text(size=10),plot.title = element_text(size=12,face="bold"))
 ggplot2.multiplot(g1,g2,g3,g4,g5)
 
-###
 #non one of the five treatemnt
 NonTreatmentPat<-df_test[,c("treatment_order","categorized_stage_at_dx")]
 NonTreatmentPat$treatmentYesNo<-"Treated"
@@ -413,15 +413,6 @@ ggplot2.barplot(data=df_test,x=df_test$TreatmentLine_1_numOfToxicities)
 
 # Data wrangling ----------------------------------------------------------
 
-
-#stage_at_dx
-
-#df_test[df_test$EHR==2515307,c("stage_at_dx","categorized_stage_at_dx")]<-c("I","Early")
-#df_test[df_test$EHR==2485067,c("stage_at_dx","categorized_stage_at_dx")]<-c("IIIA","Intermediate")
-#df_test[df_test$EHR==2440039,c("stage_at_dx","categorized_stage_at_dx")]<-c("IIIA","Intermediate")
-#df_test[df_test$EHR==2548116,c("stage_at_dx","categorized_stage_at_dx")]<-c("IIIA","Intermediate")
-#View(df_test[df_test$EHR==2485067 | df_test$EHR==2440039 |df_test$EHR==2548116 | df_test$EHR==2515307,c("startAge","patientStatus","EHR","diagnosisDate","deathDate","death_cause","stage_at_dx","categorized_stage_at_dx","stage","categorized_stage","has_systemic_progression","categorized_age_at_dx","categorized_age_at_death")])
-
 #death_cause
 df_test[df_test$dead==1 & df_test$other_death_cause=="hemoptisis",]["death_cause"]<-"hemoptisis"
 df_test[df_test$dead==1 & df_test$death_cause=="",]["death_cause"]<-"otra"
@@ -465,24 +456,11 @@ df_test[,startsWith(names(df_test),"toxicities_")]<-NULL
 #df_test[,grepl("Mutated_",names(df_test)) | grepl("time_from_",names(df_test)) | grepl("_mutation_date",names(df_test))] <-NULL
 df_test[,grepl("time_from_",names(df_test)) | grepl("_mutation_date",names(df_test))] <-NULL
 
-
-#analisis sobre las dudas
-x<-df_test[,c("survivalDays","survivalDays_from_1tto","survivalDays_from_2tto","survivalDays_from_3tto","survivalDays_from_progression")]
-x[x$survivalDays!=x$survivalDays_from_progression,]
-dfToxicityOld <- df_test[,startsWith(names(df_test),"toxicities_")]
-rold<-cbind(dfToxicityOld,total=rowSums(dfToxicityOld))
-rold$numeoftoxBefore2018<-df_test$numberOftoxicities_before2018
-rold$numeoftoxAfter2018<-df_test$numberOftoxicities_after2018
-rold$numberOftoxicities<-df_test$numberOftoxicities
-rold <- rold%>%
-  mutate(maxofBeforeAfter=pmax(df_test$numberOftoxicities_after2018,df_test$numberOftoxicities_before2018))
-View(rold[rold$maxofBeforeAfter!=rold$numberOftoxicities,])
-
-
 # Statistical test --------------------------------------------------------
-DF_TEST_NEW<-df_test
-#compare means of groups
-## Smoking vs gender using wilcox.test(alternative of t-tes)======
+  DF_TEST_NEW<-df_test
+
+# compare means of groups============
+### Smoking vs gender using wilcox.test(alternative of t-tes) ######
 #assump2: samples are drawn form population with same variance
 var.test(df_test$smoking_CxY~df_test$gender) #do logarith transformation on the continuos variable if not met
 df_test$smoking_CxY<-log(df_test$smoking_CxY)
@@ -517,7 +495,7 @@ wilcox.test(df_test$smoking_CxY~df_test$gender,mu=0,alt="two.sided",correct=TRUE
 
 
 
-# survivadays vs categorzied stage =======
+### survivadays vs categorzied stage #######
 # anova one way 
 #(one x variable, one y variable) or alternatives of anova
 
@@ -619,7 +597,9 @@ summary(AVOModel2)
 ## duration days vs type
 df_test[,c("TreatmentLine_1_type","TreatmentLine_1_duration_days","TreatmentLine_2_type","TreatmentLine_2_duration_days","TreatmentLine_3_type","TreatmentLine_3_duration_days","TreatmentLine_4_type","TreatmentLine_4_duration_days","TreatmentLine_5_type","TreatmentLine_5_duration_days")]
 
-#Binomial Logistic regression for treatmentLine1_yesNo=====
+# Find relationships =======
+
+### Binomial Logistic regression for survival ######
 
 # check linearytiy
 x<-DF_TEST_NEW
@@ -628,9 +608,10 @@ x[xFactorizedColumnsNames]<- lapply(x[xFactorizedColumnsNames],factor)
 df<-x[x$categorized_stage_at_dx!="",]
 
 xtabs(~TreatmentLine_1_yes.no+numberOfComorbidities,data =x )
-df_logisticz<-df[c("categorized_stage_at_dx","startAge","gender","smoker_yesNo","Riesgo_Radon","numberOfComorbidities","numberOfsymptoms","numberOfdrugs_beforedx","numberOftoxicities","has_systemic_progression","brain_metastasis","af","FRCV","TreatmentLine_1_yes.no")]
+df_logisticz<-df[c("categorized_stage_at_dx","startAge","gender","smoker_yesNo","Riesgo_Radon","numberOfComorbidities","numberOfsymptoms","numberOfdrugs_beforedx","numberOftoxicities","has_systemic_progression","brain_metastasis","af","FRCV","survival")]
 df_logisticz<-df_logisticz[-c(81,303,676),]
 logistic <-glm(TreatmentLine_1_yes.no~.,data = df_logisticz,family = "binomial")
+logistic <-glm(survival~.,data = df_logisticz,family = "binomial")
 summary(logistic)
 
 
@@ -654,6 +635,7 @@ ggplot(mydata, aes(logit, predictor.value))+
   theme_bw() + 
   facet_wrap(~predictors, scales = "free_y")
 
+
 plot(logistic, which = 4, id.n = 3)
 
 model.data <- augment(logistic) %>% 
@@ -661,7 +643,7 @@ model.data <- augment(logistic) %>%
 model.data %>% top_n(3, .cooksd)
 
 ggplot(model.data, aes(index, .std.resid)) + 
-  geom_point(aes(color = TreatmentLine_1_yes.no), alpha = .5) +
+  geom_point(aes(color = survival), alpha = .5) +
   theme_bw()
 model.data %>% 
   filter(abs(.std.resid) > 3)
@@ -669,20 +651,20 @@ model.data %>%
 
 dfToxicity <- x[,startsWith(names(x),"toxicities2_")]
 dfToxicity$toxicities2_OTOLARYNGOLOGY_new<- NULL  #all instances are 0
-dfToxicity$TreatmentLine_5_yes.no<-x$TreatmentLine_5_yes.no
-logistic <-glm(TreatmentLine_5_yes.no~.,data = dfToxicity,family = "binomial")
+dfToxicity$survival<-x$survival
+logistic <-glm(survival~.,data = dfToxicity,family = "binomial")
 xtabs(~TreatmentLine_5_yes.no+toxicities2_GENERALES_new+toxicities2_GASTROINTESTINALES_new,data =dfToxicity )
 
 
 dfComor<-x[,startsWith(names(x),"comorbidity_redcap_")]
-dfComor$TreatmentLine_5_yes.no<-x$TreatmentLine_5_yes.no
-logistic <-glm(TreatmentLine_5_yes.no~.,data = dfComor,family = "binomial")
+dfComor$survival<-x$survival
+logistic <-glm(survival~.,data = dfComor,family = "binomial")
 chisq.test(dfComor$TreatmentLine_5_yes.no,dfComor$comorbidity_redcap_hipertension)
 
 
 dfSymptoms<-x[,startsWith(names(x),"symptom_redcap")]#no influence
-dfSymptoms$TreatmentLine_3_yes.no<-x$TreatmentLine_3_yes.no
-logistic <-glm(TreatmentLine_3_yes.no~.,data = dfSymptoms,family = "binomial")
+dfSymptoms$survival<-x$survival
+logistic <-glm(survival~.,data = dfSymptoms,family = "binomial")
 
 
 dfdrugGroup<-x[,startsWith(names(x),"drugGroup_")] #no influence
@@ -696,9 +678,7 @@ confusionMatrixTrain<-table(dfdrugGroup$TreatmentLine_2_yes.no,probabilities >= 
 AccuracyTrain<-(confusionMatrixTrain[1,1]+confusionMatrixTrain[2,2])/nrow(train)
 
 
-#multinominal regression-------
-
-#TreatmentLine_X_catNumOfToxicities for numerical variables=======
+### TreatmentLine_X_catNumOfToxicities for numerical variables #######
 library(nnet)
 x<-DF_TEST_NEW
 xFactorizedColumnsNames<- colnames(x[,!names(x) %in% c("EHR","birthDate","startAge","deathDate","diagnosisDate",
@@ -794,7 +774,7 @@ model.5<-mlogit(TreatmentLine_5_catNumOfToxicities~1 | startAge+numberOfComorbid
 summary(multinom)
 
 
-#TreatmentLine_X_type for numerical variables----
+### TreatmentLine_X_type for numerical variables #######
 multinom <-multinom(TreatmentLine_4_type~startAge+
                       numberOfComorbidities+numberOfsymptoms+numberOfdrugs_beforedx+numberOftoxicities+
                       TreatmentLine_4_duration_days,data = df4,Hess = TRUE)
@@ -808,7 +788,7 @@ pValues3 <- (1-pnorm(abs(z),0,1))*2
 pValues4 <- (1-pnorm(abs(z),0,1))*2
 
 
-### pvalue using chic-square or alternatices for TreatmentLine_X_catNumOfToxicities and TreatmentLine_X_type------ 
+### pvalue using chic-square or alternatices for TreatmentLine_X_catNumOfToxicities and TreatmentLine_X_type  ######
 library(tidyr)
 CalulateExpectedCell = function(ve) {
  #formulate margin table
@@ -904,15 +884,7 @@ colReorder<-c("TreatmentLine_X_catNumOfToxicities",colnames(pvalue[,-length(pval
 pvalue<-pvalue[,colReorder]
 
 
-#-------------------------
-
-##plot heatmap
-mm<-as.matrix(pvalue[,-1])
- rownames(mm)<-pvalue$TreatmentLine_X_type
- heatmap(mm,name="pvalue")
- legend(x="topleft", legend=c("min", "ave", "max"), 
-        fill=colorRampPalette(brewer.pal(8, "Oranges"))(3))
-
+#
 
 
 #TreatmentLine_1_catNumOfToxicities
@@ -1000,212 +972,40 @@ colReorder<-c("TreatmentLine_X_catNumOfToxicities",colnames(pvalue[,-length(pval
 pvalue<-pvalue[,colReorder]
 
 
-
-
-
-#####
-
-
-
-#regression-------可删除—??-----
-df<-x[x$categorized_stage_at_dx!="",]
-+Riesgo_Radon+af+categorized_stage
-categorized_stage_at_dx+startAge+gender+smoker_yesNo+
-  numberOfComorbidities+numberOfsymptoms+numberOfdrugs_beforedx+numberOftoxicities+
-  has_systemic_progression+brain_metastasis+FRCV+palliative_care+
-  +num_of_onco_lines
-
-modeAll <- lm(survivalDays~numberOfsymptoms,data = df)
-summary(modeAll)
-mod<- lm(survivalDays ~as.factor(gender)+as.factor(af)+as.factor(smoker),data = df_test)
-summary(mod)
-
-str(df_test, list.len=ncol(df_test))
-
-logistic <-glm(dead~.,data = df_test,family = "binomial")
-summary(logistic)
-df_test[sapply(df_test, is.character)] <- lapply(df_test[sapply(df_test, is.character)], 
-                                                 as.factor)
-df_test[sapply(df_test, is.numeric)] <- lapply(df_test[sapply(df_test, is.numeric)], 
-                                               as.factor)
-
-
-#GoodmanKruskal
-install.packages("GoodmanKruskal")
-library(GoodmanKruskal)
-varSet1 <- c("gender", "death_cause", "smoker", "survivalDays", "has_stage_IV_date")
-CarFrame1 <- subset(df_test, select = varSet1)
-GKmatrix1 <- GKtauDataframe(CarFrame1)
-plot(GKmatrix1)
-
-#select columns of comorbility, symptoms
-
-dfComorbities <- df_test[,grepl("comorbidity_redcap",names(df_test))]
-dfComorbities$EHR<- df_test$EHR
-dfSymptom <-df_test[,grepl("symptom_redcap",names(df_test))]
-dfSymptom$EHR<- df_test$EHR
-Comb <- left_join(dfComorbities,dfSymptom,by="EHR")
-Comb["gender"]<-df_test["gender"]
-Comb["Riesgo_Radon"]<-df_test["Riesgo_Radon"]
-Comb["patientStatus"]<- df_test["patientStatus"]
-GKComorbitiesAndSymtoms <- GKtauDataframe(Comb)
-plot(GKComorbitiesAndSymtoms)
-
-#regresion
-Comb1<-Comb
-Comb1["survivalDays"]<- df_test["survivalDays"]
-mod<- lm(survivalDays ~.,data = Comb1)
-summary(mod)
-
-##Association-----------------
-
-x<-df_test
-Symptoms<-colnames(x[,startsWith(names(x),"symptom_redcap")])#no influence
-drugGroup<-colnames(x[,startsWith(names(x),"drugGroup_")]) #no influence
-Comor<-colnames(x[,startsWith(names(x),"comorbidity_redcap_")])
-Toxicity<-colnames(x[,startsWith(names(x),"toxicities2_")])
-Gen<-c("Riesgo_Radon","stage_at_dx","af","ps_at_diagnosis","brain_metastasis","FRCV","stage","categorized_age_at_dx","has_systemic_progression","surgery","radiationtherapy","antiangiogenic","treatment_order","palliative_care","palliative_care_in_1mon_to_death","overtreated","smoker_yesNo","has_stage_IV_date")
-TreatmentLine1<-colnames(x[,startsWith(names(x),"TreatmentLine_1_")])[-c(1:4,7,9,24,26:28)]
-#TreatmentLine2<-colnames(x[,startsWith(names(x),"TreatmentLine_2_")])[-c(1,2,4,7,24,26:28)]
-AttributesForClassification<- c(Symptoms,drugGroup,Comor,Toxicity,Gen,TreatmentLine1)
-dfClass <- x[,AttributesForClassification]
-xFactorizedColumnsNames<- colnames(dfClass[,!names(dfClass) %in% c("TreatmentLine_1_duration_days","TreatmentLine_2_duration_days","TreatmentLine_1_LGID","TreatmentLine_2_LGID")])
-dfClass[xFactorizedColumnsNames]<- lapply(dfClass[xFactorizedColumnsNames],factor)
-
-df<-dfClass[dfClass$stage_at_dx!="" & dfClass$TreatmentLine_1_type!= "",]
-df<-removeAttributesZeroOnes(df)
-
-
-dfPrep= function(df){
-  df["TreatmentLine_1_type"]<-df_test$TreatmentLine_1_type
-  df<- as.data.frame(lapply(df,factor))
-  df<-df[df$TreatmentLine_1_type!="",]
-  return(df)
-}
-
-x<-df_test
-
-x<-x[,-c(145:253,265:281,161:166)]
-xFactorizedColumnsNames<- colnames(x[,!names(x) %in% c("EHR","birthDate","startAge","deathDate","diagnosisDate",
-                                                       "lastDocumentDate","monthsInTheSystem","smoking_CxY","diagnosisYear",
-                                                       "age_of_diagnosis","age_of_death","survivalDays","numberOfComorbidities",
-                                                       "numberOfsymptoms","numberOfdrugs_beforedx","numberOftoxicities","TreatmentLine_1_duration_days",
-                                                       "TreatmentLine_1_posology","num_of_onco_lines","TreatmentLine_1_death","TreatmentLine_3_duration_days",
-                                                       "TreatmentLine_4_duration_days","TreatmentLine_5_duration_days","TreatmentLine_4_init","TreatmentLine_4_finish","TreatmentLine_3_init","TreatmentLine_3_finish","TreatmentLine_1_yes.no","TreatmentLine_2_yes.no","TreatmentLine_3_yes.no","TreatmentLine_4_yes.no","TreatmentLine_5_yes.no",
-                                                       "TreatmentLine_2_init","TreatmentLine_2_finish","TreatmentLine_1_init","TreatmentLine_1_finish","num_of_qt_lines","num_of_onco_lines","num_of_tki_lines","num_of_imm_lines","num_of_ant_lines",
-                                                       "chemotherapy","immunotherapy","tki","patientStatus","dead","TreatmentLine_1_short_tto","gender","comorbidities_beforedx_jkes","death_cause","any_comorbidity_redcap","comorbidities","categorized_numberOftoxicities","categorized_numberOfdrugs_beforedx","surgeries","smoker","numberOfComorbidities_beforedx_jkes","TreatmentLine_1_drugs","stage_IV_date","toxicities","symptoms","any_symptom_redcap")])
-#xFactorizedColumnsNames<-!grepl(xFactorizedColumnsNames,"TreatmentLine_3_", fixed = TRUE)
-x[xFactorizedColumnsNames] <- lapply(x[xFactorizedColumnsNames],factor)
-x<-x[,sapply(x, is.factor)]
-
-xTreatmentLine_1_type <- x[x$TreatmentLine_1_type!="",]
-#sapply(xTreatmentLine_1_type,function(x) table(x))
-#remove variables with one group of elelemtn
-removeAttributesZeroOnes =function(df){
-  colnamesToElim=c()
-  for(i in 1:length(df)){
-    if (length(table(df[,i]))==1){
-      colnamesToElim<-c(colnamesToElim,colnames(df[i]))
-    }
-  }
-  df<-df[,! names(df) %in% colnamesToElim,drop=F]
-  return(df)
-}
-
-xTreatmentLine_1_type<-removeAttributesZeroOnes(xTreatmentLine_1_type)
-xTreatmentLine_1_type<-df
-list<- colnames(xTreatmentLine_1_type)[c(4:26,28:76,85,88:103,105,110)]
-
-atributes<-unlist(lapply(list, function(x) paste(x,"=1",sep = "")))
-atributes<-atributes[-74]
-attributes1<-c("palliative_care_in_1mon_to_death=yes","palliative_care_before_1mon_to_death=yes","overtreated=yes","smoker_yesNo=yes")
-dfOtro<-xTreatmentLine_1_type[c(2:3,27,78,81,104)]
-atributes2<-c()
-for( j in 1:length(dfOtro)){
-  m<- levels(dfOtro[[j]])
-  for(i in 1:length(m)){
-    atributes2<-c(atributes2,paste(names(dfOtro[j]),"=",m[i],sep = ""))
-  }
-  
-}
-xTreatmentLine_1_type<-xTreatmentLine_1_type[,-1]
-rules=apriori(xTreatmentLine_1_type, parameter = list(minlen=2,supp=0.2, conf=0.96), appearance = list(rhs=c("TreatmentLine_1_type=qt"), 
-                                                                                                       default="lhs"), control = list(verbose=F))
-
-rules=apriori(xTreatmentLine_1_type, parameter = list(minlen=2,supp=0.2, conf=1), appearance = list(rhs=c("TreatmentLine_1_type=qt"), 
-                                                                                                        lhs=c("smoker_yesNo=yes","toxicities2_PNEUMOLOGICAS_new=1","toxicities2_PNEUMOLOGICAS_new=0","TreatmentLine_1_toxicities_GASTROINTESTINALES=1","Riesgo_Radon=0", "Riesgo_Radon=1","Riesgo_Radon=2"),default="none"), control = list(verbose=F))
-#rules for treatmentLine_1_Type
-rules=apriori(xTreatmentLine_1_type, parameter = list(minlen=2,supp=0.05, conf=1), appearance = list(rhs=c("TreatmentLine_1_type=qt"), lhs=c(atributes,attributes1,atributes2),default="none"), control = list(verbose=F))
-rules=apriori(xTreatmentLine_1_type, parameter = list(minlen=2,supp=0.2, conf=0.95), appearance = list(rhs=c("TreatmentLine_1_type=qt"), lhs=c(atributes,attributes1,atributes2),default="none"), control = list(verbose=F))
-rules=apriori(xTreatmentLine_1_type, parameter = list(minlen=2,supp=0.4, conf=0.7), appearance = list(rhs=c("TreatmentLine_1_type=qt"), lhs=c(atributes,attributes1,atributes2),default="none"), control = list(verbose=F))
-rules=apriori(xTreatmentLine_1_type, parameter = list(minlen=2,supp=0.6, conf=0.6), appearance = list(rhs=c("TreatmentLine_1_type=qt"), lhs=c(atributes,attributes1,atributes2),default="none"), control = list(verbose=F))
-rules=apriori(xTreatmentLine_1_type, parameter = list(minlen=2,supp=0.8, conf=0.1), appearance = list(rhs=c("TreatmentLine_1_type=qt"), lhs=c(atributes,attributes1,atributes2),default="none"), control = list(verbose=F))
-
-#rules for surgery
-atributes<-atributes[-86]
-rules=apriori(xTreatmentLine_1_type, parameter = list(minlen=2,supp=0.1, conf=0.5), appearance = list(rhs=c("surgery=1"), lhs=c(atributes,attributes1,atributes2),default="none"), control = list(verbose=F))
-rules=apriori(xTreatmentLine_1_type, parameter = list(minlen=2,supp=0.05, conf=0.5), appearance = list(rhs=c("surgery=1"), lhs=c(atributes,attributes1,atributes2),default="none"), control = list(verbose=F))
-
-#attributes<-attributes( -c(106,118,128,140,147,150,155))
-inspect(rules)
-rules.sorted<- sort(rules,by="lift")
-summary(rules.sorted)
-
-inspect(rules.sorted)
-
-
-#find redundant rules
-subset.matrix <- is.subset(rules.sorted, rules.sorted, sparse = FALSE)
-subset.matrix[lower.tri(subset.matrix,diag = T)]<-NA
-redundant<- colSums(subset.matrix,na.rm = T)>=1
-which(redundant)
-
-
-#remove redundant rules
-rules.pruned<- rules[!redundant]
-rules.pruned <- sort(rules.pruned,by="lift")
-inspect(rules.pruned)
-inspect(head(rules.pruned,n=7,by="lift"))
-plot(rules.pruned)
-plot(rules.pruned, method = "grouped")
-plot(rules.pruned, method = "graph",control = list(type="items"))
-
-##visualizing association rules
-
-subset.matrix <- is.subset(rules.pruned, rules.pruned, sparse = FALSE)
-subset.matrix[lower.tri(subset.matrix,diag = T)]<-NA
-redundant<- colSums(subset.matrix,na.rm = T)>=1
-which(redundant)
-
-rules.pruned2<- rules.pruned[!redundant]
-rules.pruned2 <- sort(rules.pruned2,by="lift")
-inspect(rules.pruned2)
-inspect(head(rules.pruned2,n=7,by="lift"))
-plot(rules.pruned2)
-plot(rules.pruned2, method = "grouped")
-plot(head(rules.pruned2,n=20,by="lift"), method = "graph",control = list(type="items"))
-plot(rules.pruned2, method = "two-key plot")
-plot(rules.pruned2, measure = c("support", "lift"), shading = "confidence")
-
-
-#Binomial Logistic regression for survival (long, short)=====
-
+# Modeling -----------
 # check linearytiy
 DF_TEST_NEW<-df_test[df_test$survival!="",]
 # DF_TEST_NEW$survival<-df_patient_integrated_info[DF_TEST_NEW]
 x<-DF_TEST_NEW
 
-#Symptoms<-colnames(x[,startsWith(names(x),"symptom_redcap")])#no influence
-#drugGroup<-colnames(x[,startsWith(names(x),"drugGroup_")]) #no influence
+# plot pie chart of observations to be analyzed=========
+tableSurvival<- data.frame(
+  group=names(table(x$survival)),
+  value=c(table(x$survival)[[1]],table(x$survival)[[2]])
+)
+blank_theme <- theme_minimal()+
+  theme(
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    panel.border = element_blank(),
+    panel.grid=element_blank(),
+    axis.ticks = element_blank(),
+    plot.title=element_text(size=14, face="bold")
+  )
+
+bp<- ggplot(tableSurvival, aes(x="", y=value, fill=group))+
+  geom_bar(width = 1, stat = "identity")
+pie <- bp + coord_polar("y", start=0)+ggtitle("Distribution of survival population
+             with sample size")
+pie + scale_fill_brewer("Survival types")+ blank_theme +
+  theme(axis.text.x=element_blank())+
+  geom_text(aes(y = value/3 + c(0, value[-length(value)]), 
+                label = value), size=5)+labs(fill="Survival")
+
+# filter survival valid information ======
 Comor<-colnames(x[,startsWith(names(x),"comorbidity_redcap_")])
 Mutated<-colnames(x[,startsWith(names(x),"Mutated_")])
-#Toxicity<-colnames(x[,startsWith(names(x),"toxicities2_")])
-
-Gen<-c("gender","Riesgo_Radon","stage_at_dx","af","brain_metastasis","smoker_yesNo","FRCV","stage","categorized_age_at_dx","numberOfComorbidities","surgery","radiationtherapy","survival","palliative_care_in_1mon_to_death","palliative_care_in_1mon_to_death","palliative_care_before_1mon_to_death","overtreated","has_stage_IV_date","has_systemic_progression","ps_at_diagnosis")
-#TreatmentLine1<-colnames(x[,startsWith(names(x),"TreatmentLine_1_")])[-c(1,2,4,7,24,28,6,25,9:22,27:28)]
-#TreatmentLine2<-colnames(x[,startsWith(names(x),"TreatmentLine_2_")])[-c(1,2,4,7,24,28,6,25,9:22,27:28)]
-TreatmentLine1<-colnames(x[,startsWith(names(x),"TreatmentLine_1_")])[-c(1,2,4,7,24,28,6,9:22)]
-TreatmentLine2<-colnames(x[,startsWith(names(x),"TreatmentLine_2_")])[-c(1,2,4,7,24,28,6,9:22)]
+Gen<-c("gender","Riesgo_Radon","stage_at_dx","af","brain_metastasis","smoker_yesNo","FRCV","stage","categorized_age_at_dx","numberOfComorbidities","surgery","radiationtherapy","survival","palliative_care_in_1mon_to_death","palliative_care_before_1mon_to_death","overtreated","has_stage_IV_date","has_systemic_progression","ps_at_diagnosis")
 TreatmentLine1<-colnames(x[,startsWith(names(x),"TreatmentLine_1_")])[-c(1,2,4,7,24,28,6)]
 TreatmentLine2<-colnames(x[,startsWith(names(x),"TreatmentLine_2_")])[-c(1,2,4,7,24,28,6)]
 
@@ -1215,17 +1015,9 @@ dfClass <- x[,AttributesForClassification]
 dfClass[,c("ps_at_diagnosis")]<-sapply(dfClass[,c("ps_at_diagnosis")], function(x) ifelse(is.na(x),"",x))
 xFactorizedColumnsNames<- colnames(dfClass[,!names(dfClass) %in% c("TreatmentLine_1_duration_days","TreatmentLine_2_duration_days","TreatmentLine_1_LGID","TreatmentLine_2_LGID","numberOfComorbidities","TreatmentLine_2_numOfToxicities","TreatmentLine_1_numOfToxicities")])
 dfClass[xFactorizedColumnsNames]<- sapply(dfClass[xFactorizedColumnsNames],factor)
-#dfClass[,c("TreatmentLine_1_duration_days","TreatmentLine_2_duration_days")]<-lapply(dfClass[,c("TreatmentLine_1_duration_days","TreatmentLine_2_duration_days")], function(x) ifelse(is.na(x),"",x))
-#df<-dfClass[dfClass$stage_at_dx!="" & dfClass$TreatmentLine_1_type!= "" & dfClass$TreatmentLine_2_type!= "",]
-#dfClass<-dfClass[,-c(31,41,23,15)]
-df<-dfClass[dfClass$stage_at_dx!="" ,]
 
-df<-removeAttributesZeroOnes(df)
+df<-removeAttributesZeroOnes(dfClass)
 
-#df<-df[,-c(18,49)]#elements one level "drugGroup_otro" "toxicities2_RENAL_new"   
-
-#logistic <-glm(survival~.,data = df,family = "binomial")
-#summary(logistic)
 
 dfClass[xFactorizedColumnsNames]<- lapply(dfClass[xFactorizedColumnsNames],factor)
 
@@ -1233,244 +1025,173 @@ dfClassnUEVO<-as.data.frame(lapply(dfClass[,! names(dfClass) %in% c("survival")]
 dfClassnUEVO$survival<-dfClass$survival
 
 
-#FAMD------
-dfClass<-dfClass[,! names(dfClass) %in% c("survival")]
-
-
-res.famd<-FAMD(dfClass,graph = FALSE,ncp = 83)
-res.famd<-FAMD(dfClass)
+# FAMD======
+dfClassFAMD<-dfClass[,! names(dfClass) %in% c("survival")]
+res.famd<-FAMD(dfClassFAMD,graph = FALSE,ncp = 165)
 summary(res.famd)
-print(res.famd)
-get_eigenvalue(res.famd)
+get_eigenvalue(res.famd)[1:10,]
+plot(get_eigenvalue(res.famd)[1:62,3],xlab = "Principal Component",
+     ylab = "Cumulative Proportion of Variance Explained",
+      type="b")
 
-fviz_screeplot(res.famd,ncp=55)
-fviz_eig(res.famd, choice = "eigenvalue", addlabels=TRUE,ncp = 12)
+res <- get_famd_ind(res.famd)
+var.ind<-res$coord[,1:62]
+newDataSet<-data.frame(var.ind,survival=dfClass$survival)
+head(newDataSet,5)
+
+fviz_screeplot(res.famd,ncp=62)
+fviz_eig(res.famd, choice = "eigenvalue", addlabels=TRUE,ncp = 12,hjust = -0.3)
 var <- get_famd_var(res.famd)
+var.ind<-res.famd$ind
+newDataSet<-head(var[,1:62],14)
+var.ind<-get_famd(res.famd, element ="ind")
+
+
 # Coordinates of variables
 head(var$coord)
 # Cos2: quality of representation on the factore map
 head(var$cos2)
 # Contributions to the  dimensions
-var$contrib
+head(var$contrib[,1:6])
 
 # Plot of variables
 fviz_famd_var(res.famd, repel = TRUE)
+
+
 # Contribution to the first dimension
 fviz_contrib(res.famd, "var", axes = 1)
 fviz_contrib(res.famd, "var", axes = 2)
 fviz_contrib(res.famd, "var", axes = 3)
 # Contribution to the second dimension
-# Variable contributions on axes 1 + 2
-fviz_contrib(res.famd, "var", axes = 1:82,addlabels = TRUE, ylim = c(0, 45))
-
-plot(res.famd,invisible = "quali",habillage="TreatmentLine_1_type")
-plot(res.famd,invisible = "quali",habillage="TreatmentLine_1_type",select = "contrib 8")
-plot(res.famd,invisible = "quali",habillage="TreatmentLine_1_type",select = "cos2 0.8")
-plot(res.famd,invisible = "quali",habillage="stage",select = "contrib 8")
-plot(res.famd,invisible = "quali",habillage="TreatmentLine_1_type",select = "contrib 8",unselect = 0)
-plot(res.famd,invisible = "quali",habillage="TreatmentLine_1_type",select = "contrib 8",unselect = 1)
-plot(res.famd,invisible = "quali",habillage="TreatmentLine_1_type",select = "contrib 8",unselect = "grey70")
-plot(res.famd,invisible = "quali",habillage="TreatmentLine_1_type",select = "contrib 8",unselect = "grey70",axes = 3:4)
-plot(res.famd,choix = "var")
-
-fviz_mfa_ind(res.famd, 
-             habillage = "TreatmentLine_1_type", # color by groups 
-             palette = c("#00AFBB", "#E7B800", "#FC4E07","#000000"),
-             #palette = c("#000000", "#000000", "#000000","#000000"),
-             addEllipses = TRUE, ellipse.type = "confidence", 
-             repel = FALSE # Avoid text overlapping
-)
-
-
-# Quantitative analysis
-quanti.var <- get_famd_var(res.famd, "quanti.var")
-fviz_famd_var(res.famd, "quanti.var", repel = TRUE,
-              col.var = "black")
-fviz_famd_var(res.famd, "quanti.var", col.var = "contrib", 
-              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
-              repel = TRUE)
-# Color by cos2 values: quality on the factor map
-fviz_famd_var(res.famd, "quanti.var", col.var = "cos2",
-              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), 
-              repel = TRUE)
-
-# Qualitative analysis
-quali.var <- get_famd_var(res.famd, "quali.var")
-fviz_famd_var(res.famd, "quali.var", col.var = "contrib", 
-              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07")
-)
-
-#Individuals
-plot(res.famd,choix="ind",habillage=4)
-ind <- get_famd_ind(res.famd)
-fviz_famd_ind(res.famd, col.ind = "cos2", 
-              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
-              repel = TRUE)
-
- 
+# Variable contributions on axes 1》62
+fviz_contrib(res.famd, "var", axes = 1:62)
 
 summary(res)
-numberOfComorbidities
-TreatmentLine_1_numOfToxicities
-TreatmentLine_2_numOfToxicities
-
-#modelling classifiers for survival------
-set.seed(2262)
-#dfClassnUEVO<-dfClassnUEVO[,-c(37,59)]
-#dfClassnUEVO<-dfClassnUEVO[,! names(dfClass) %in% c("TreatmentLine_1_duration_days","TreatmentLine_2_duration_days")]
-
-dfClassnUEVO<-dfClassnUEVO[,c("TreatmentLine_2_drugs","TreatmentLine_1_drugs","stage_at_dx","stage","TreatmentLine_2_type","TreatmentLine_1_type","ps_at_diagnosis","palliative_care_in_1mon_to_death","palliative_care_before_1mon_to_death","TreatmentLine_2_short_tto","TreatmentLine_1_short_tto","overtreated","survival")]
-dfClassnUEVO<-dfClassnUEVO[,c("TreatmentLine_2_drugs","TreatmentLine_1_drugs","stage_at_dx","stage","TreatmentLine_2_type","TreatmentLine_1_type","ps_at_diagnosis","Riesgo_Radon","categorized_age_at_dx","palliative_care_in_1mon_to_death","palliative_care_before_1mon_to_death","survival")]
-dfClassnUEVO<-dfClassnUEVO[,c("stage_at_dx","stage","TreatmentLine_2_type","TreatmentLine_1_type","ps_at_diagnosis","Riesgo_Radon","categorized_age_at_dx","survival")]
-dfClassnUEVO<-dfClassnUEVO[,c("TreatmentLine_2_drugs","TreatmentLine_1_drugs","stage_at_dx","stage","TreatmentLine_2_type","TreatmentLine_1_type","ps_at_diagnosis","Riesgo_Radon","categorized_age_at_dx","survival")]
-#PC1
-dfClassnUEVO<-dfClassnUEVO[,c("TreatmentLine_2_drugs","TreatmentLine_1_drugs","stage_at_dx","stage","TreatmentLine_2_type","TreatmentLine_1_type","ps_at_diagnosis","Riesgo_Radon","categorized_age_at_dx","TreatmentLine_2_short_tto","TreatmentLine_1_short_tto","overtreated","survival","TreatmentLine_1_yes.no","TreatmentLine_2_yes.no","TreatmentLine_1_toxicities","TreatmentLine_2_toxicities","TreatmentLine_1_numOfToxicities","TreatmentLine_2_toxicities_ASTENIA","TreatmentLine_1_toxicities_GASTROINTESTINALES","TreatmentLine_2_toxicities_ANALITICAS","TreatmentLine_1_toxicities_ASTENIA","TreatmentLine_2_toxicities_CUTANEAS","has_stage_IV_date","TreatmentLine_1_LGID","TreatmentLine_2_LGID")]
-
-dfClassnUEVO<-dfClassnUEVO[,c("TreatmentLine_2_drugs","TreatmentLine_1_drugs","stage_at_dx","stage","TreatmentLine_2_type","TreatmentLine_1_type","ps_at_diagnosis","survival")]
-dfClassnUEVO<-dfClassnUEVO[,c("TreatmentLine_2_drugs","TreatmentLine_1_drugs","stage","TreatmentLine_2_type","TreatmentLine_1_type","ps_at_diagnosis","palliative_care_in_1mon_to_death","palliative_care_before_1mon_to_death","TreatmentLine_1_short_tto","overtreated","survival")]
-
-dfClassnUEVO<-dfClassnUEVO[,c("stage_at_dx","TreatmentLine_2_type","TreatmentLine_1_type","palliative_care_in_1mon_to_death","overtreated","survival")]
 
 
 
-trian_ind <- sample(seq_len(nrow(dfClassnUEVO)),size = floor(0.80*nrow(dfClassnUEVO)))
-trainSet<-dfClassnUEVO[trian_ind,]
-testSet<-dfClassnUEVO[-trian_ind,]
-library(randomForest)
-colnames(train)[colSums(is.na(train)) > 0]
-model<- randomForest(survival~.,data=train)
-library(caret)
-#repeated k-fold cross validation
-traincontrol<-trainControl(method = "repeatedcv",number = 10,repeats = 3)
-model<- train(survival~.,data=dfClassnUEVO,trControl=traincontrol,method="rf")
-#k-fold cross validation
-traincontrol<-trainControl(method = "cv",number = 10)
-#grid <- expand.grid(.fL=c(0), .usekernel=c(FALSE))
-model<- train(survival~.,data=dfClassnUEVO,trControl=traincontrol,method="rf")
-#decision trees
-model<- train(survival~.,data=dfClassnUEVO,trControl=traincontrol,method="rpart")
-#svm
-model <- svm(survival~., data = dfClassnUEVO, kernel = "linear",
-                  cost = 10, scale = FALSE)
-#binomial classifier
-model<- train(survival~.,data=dfClassnUEVO,trControl=traincontrol,preProcess=c('scale', 'center'),method="glm",family=binomial(link = "logit"))
+# cfs feature selection ========
+result<- as.vector(cfs(survival ~., dfClass))
+dfCFS<-  dfClass[, c(result,"survival")]
+#dfCFST for neuralNetwork
+dfCFST<- as.data.frame(lapply(dfCFS[,-length(dfCFS)],function(x) as.numeric(x)))
+dfCFST$survival<-dfCFS$survival
 
-summary(model)
-model$index
-plot(model, dfClassnUEVO)
-# plot the model
+# modelling classifiers for survival========
 
-install.packages("rattle")
-library(rattle)
-suppressMessages(library(rattle))
-fancyRpartPlot(decisionTree$finalModel)
-prp(model$finalModel, box.palette = "Reds", tweak = 1.2)
+folds = createFolds(newDataSet$survival, k = 10)
+folds = createFolds(dfCFS$survival, k = 10)
+folds = createFolds(dfCFST$survival, k = 10)#transform to numerical value for neural network
+MatrixFocAUC<-list()
+# in cv we are going to applying a created function to our 'folds'
+cv = lapply(folds, function(x) { 
 
-
-print(model)
-importance(model)
-varImpPlot(model,  
-           sort = T,
-           n.var=15,
-           main="Variable Importance Visualization",cex=0.6)
-
-
-# Predicting response variable and Create Confusion Matrix
-library(e1071)  
-library(caret)  
-
-trainSet$predicted.response = predict(model , trainSet)
-print(  
-  confusionMatrix(data = trainSet$predicted.response,  
-                  reference = trainSet$survival,
-                  positive = 'short'))
-
-testSet$predicted.response = predict(model , testSet)
-print(  
-  confusionMatrix(data = testSet$predicted.response,  
-                  reference = testSet$survival,
-                  positive = 'short'))
-error.rate<-round(mean(testSet$predicted.response!=testSet$survival),2)
-
-
-
-#
-
-
-
-
-
-
-#Princpial component analysis after dimensionality reduction-----
-
-dfClassnUEVO<-dfClassnUEVO[,! names(dfClassnUEVO) %in% c("survival")]
-dfClassnUEVO<- as.data.frame(lapply(dfClassnUEVO,factor))
-
-res.mca <- MCA(dfClassnUEVO, graph = TRUE,ncp = 14)
-fviz_screeplot(res.mca, addlabels = TRUE, ylim = c(0, 45))
-
-fviz_mca_var(res.mca, choice = "mca.cor", 
-             repel = TRUE, # Avoid text overlapping (slow)
-             ggtheme = theme_minimal(),
-             axes = 5:6)
-
-fviz_contrib(res.mca, "var", axes = 1)
-# Coordinates of variables
-head(var$coord)
-# Cos2: quality of representation on the factore map
-head(var$cos2)
-# Contributions to the  dimensions
-var$contrib
-
-# Plot of variables
-fviz_mca_var(res.mca,repel = TRUE)
-
-# Contribution to the first dimension
-fviz_contrib(res.mca, "var", axes = 1)
-fviz_contrib(res.mca, "var", axes = 2)
-fviz_contrib(res.mca, "var", axes = 3)
-# Contribution to the second dimension
-# Variable contributions on axes 1 + 2
-fviz_contrib(res.mca, "var", axes = 1:83)
-
-plot(res.famd,invisible = "quali",habillage="TreatmentLine_1_type")
-plot(res.famd,invisible = "quali",habillage="TreatmentLine_1_type",select = "contrib 8")
-plot(res.famd,invisible = "quali",habillage="TreatmentLine_1_type",select = "cos2 0.8")
-plot(res.famd,invisible = "quali",habillage="stage",select = "contrib 8")
-plot(res.famd,invisible = "quali",habillage="TreatmentLine_1_type",select = "contrib 8",unselect = 0)
-plot(res.famd,invisible = "quali",habillage="TreatmentLine_1_type",select = "contrib 8",unselect = 1)
-plot(res.famd,invisible = "quali",habillage="TreatmentLine_1_type",select = "contrib 8",unselect = "grey70")
-plot(res.famd,invisible = "quali",habillage="TreatmentLine_1_type",select = "contrib 8",unselect = "grey70",axes = 3:4)
-plot(res.mca,choix = "var")
-
-
-
-#Individuals
-plot(res.famd,choix="ind",habillage=4)
-ind <- get_famd_ind(res.famd)
-fviz_famd_ind(res.famd, col.ind = "cos2", 
-              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
-              repel = TRUE)
-
-
-
-
-#modelling classifers for toxicities.----
-
-prueba<-dfClass
-typeOfToxicity<-c("GENERALES","GASTROINTESTINALES","ENDOCRINAS","CUTANEAS","PNEUMOLOGICAS","ANALITICAS","NEUROLOGICAS","ASTENIA","ALERGIA","ANALYTCAL_HEPATICA","RENAL","OTOLARYNGOLOGY","CARDIOLOGICAL")
-
-df_test[,startsWith(names(df_test),"toxicities_")]
-
-prueba$toxicities_1
-for (i in length(dfClass)){
-  for(j in length(typeOfToxicity)){
+  training_fold = dfCFST[-x, ] 
+  test_fold = dfCFST[x, ]
+ # training_fold = dfCFS[-x, ] 
+ # test_fold = dfCFS[x, ] 
+  
+  # now apply (train) the classifer on the training_fold
+ 
+    # classifier<- svm(survival~., data = training_fold,probability=TRUE)    
+    # prob = attr(predict(classifier, newdata = test_fold,probability=TRUE),"probabilities")[,"short"]
     
-  if(startsWith(colnames(dfClass)[i],"TreatmentLine_1_toxicities_") & stri_detect_fixed(colnames(dfClass)[i],j)){
     
-  }
+   # classifier<- randomForest(survival~.,data=training_fold,ntree=500)
+    classifier<- rpart(survival~.,data=training_fold,method = 'class')
+    prob = predict(classifier, newdata = test_fold,type="pro")[,"short"]
+   
+    
+
+  #neural network
+    # classifier = neuralnet((survival=="short") ~ .,
+    #                        data = training_fold,hidden = 3, linear.output = FALSE, threshold=0.01)
+    # 
+    #  y_pred=compute(classifier,test_fold[,-length(test_fold)])
+    #  prob<-y_pred$net.result
+      y_pred<- ifelse(prob>0.5,"short","long")
+     
+     cm = table(y_pred,test_fold$survival)
+  
+  accuracy = (cm[1,1] + cm[2,2]) / (cm[1,1] + cm[2,2] + cm[1,2] + cm[2,1])
+  Precision=cm[1,1]/(cm[1,1]+cm[1,2])
+  Recall=cm[1,1]/(cm[1,1]+cm[2,1])
+  MatrixFocAUC<-list(prob,as.numeric(as.factor(test_fold$survival)))
+  mm<-matrix(c(accuracy,Precision,Recall))
+  return(list(mm,MatrixFocAUC))
+})
+
+
+cvm<-matrix(,nrow=3,ncol = 10)
+predicted<-list()
+observ<-list()
+##Accuracy,Precision,Recall
+for (i in 1:length(cv)) {
+  cvm[,i]<-cv[i][[1]][[1]]
   
 }
+
+for (i in 1:length(cv)) {
+  predicted[[i]]<-cv[i][[1]][[2]][[1]]
+  
+}
+for (i in 1:length(cv)) {
+  observ[[i]]<-cv[i][[1]][[2]][[2]]
+  
 }
 
+out<-cvAUC(predicted,observ)
+outRFcfs<-out
+outRFfamd<-out
+outDTfamd<-out
+outSVMfamd<-out
+outNNfamd<-out
+outNNCFS<-out
+outSVMCFS<-out
+outDTCFS<-out
+#Plot fold AUCs
+plot(out$perf, col="grey82", lty=3, main="10-fold CV AUC")
+
+#Plot CV AUC
+plot(out$perf, col="red", avg="vertical", add=TRUE)
+
+plot(outRFfamd$perf, col="red", avg="vertical", add=TRUE)
+plot(outSVM$perf, col="red", avg="vertical", add=TRUE)
+abline(a=0,b=1)
+legend(.7,.3,round(out$cvAUC,4),title="cv AUC",cex=0.4)
+
+
+accuracy = mean(as.numeric(cvm[1,]))
+Precision = mean(as.numeric(cvm[2,]))
+Recall = mean(as.numeric(cvm[3,]))
+par(mfrow=c(1,3))
+
+boxplot(cv[1,],main="Accuracy")
+boxplot(cv[2,],main="Precision")
+boxplot(cv[3,],main="Recall")
+
+
+classifier<- rpart(survival~.,data=newDataSet,method = 'class')
+rpart.plot(classifier,main="Classification tree")
+summary(classifier)
+printcp(classifier)
+plotcp(classifier)
+ptree<- prune(classifier, cp= classifier$cptable[which.min(classifier$cptable[,"xerror"]),"CP"])
+rpart.plot(ptree, main="Pruned Classification Tree")
+
+classifier = neuralnet((survival=="short") ~ .,
+                       data = dfCFST,hidden = 3, linear.output = FALSE, threshold=0.01) 
+plot(classifier)
+
+
+classifier = nnet((survival=="short") ~ ., data = dfCFS,size=2 ) 
+
+plot.nnet(classifier,pos.col='darkgreen',neg.col='darkblue',alpha.val=0.7,rel.rsc=15,
+          circle.cex=10,cex=1.4,
+          circle.col='brown')
+par(mar=numeric(4),family='serif')
+plot.nnet(classifier, alpha.val = 0.5, circle.col = list('lightgray', 'white'), bord.col = 'black')
+plotnet(classifier)
+dev.off()
+plot(classifier)
 
